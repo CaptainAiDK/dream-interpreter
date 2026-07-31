@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dream Interpreter</string>
+    <string name="title_activity_main">Dream Interpreter</string>
+    <string name="package_name">com.dreaminterpreter.app</string>
+    <string name="custom_url_scheme">com.dreaminterpreter.app</string>
+</resources>

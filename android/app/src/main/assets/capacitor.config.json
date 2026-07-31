@@ -1,0 +1,9 @@
+{
+	"appId": "com.dreaminterpreter.app",
+	"appName": "Dream Interpreter",
+	"webDir": "dist/public",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	}
+}

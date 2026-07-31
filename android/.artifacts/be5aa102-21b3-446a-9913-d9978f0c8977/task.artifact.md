@@ -1,0 +1,11 @@
+- [x] Create missing Android resources
+    - [x] Create `ic_launcher_background.xml`
+    - [x] Create `ic_launcher_foreground.xml`
+    - [x] Create adaptive icon (`mipmap-anydpi-v26/ic_launcher.xml`)
+    - [x] Create round adaptive icon (`mipmap-anydpi-v26/ic_launcher_round.xml`)
+    - [x] Create legacy icon (`mipmap/ic_launcher.xml`)
+    - [x] Create legacy round icon (`mipmap/ic_launcher_round.xml`)
+    - [x] Create `res/xml/file_paths.xml`
+- [x] Verify build
+    - [x] Run `./gradlew :app:processDebugResources`
+    - [x] Run `./gradlew assembleDebug`
