@@ -1,5 +1,17 @@
+import { Capacitor } from "@capacitor/core";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+
+const getApiBaseUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    return apiUrl.replace(/\/$/, "");
+  }
+  if (Capacitor.isNativePlatform()) {
+    throw new Error("VITE_API_URL must be set on native platforms.");
+  }
+  return "";
+};
 
 export default function LoginPage() {
   const [username, setUsername] = useState("admin");
@@ -13,7 +25,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         credentials: "include",

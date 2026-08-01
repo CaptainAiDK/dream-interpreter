@@ -45,7 +45,9 @@ const getApiUrl = () => {
     return `${baseUrl}/api/trpc`;
   }
   if (Capacitor.isNativePlatform()) {
-    return "http://10.0.2.2:3000/api/trpc";
+    throw new Error(
+      "VITE_API_URL must be set when running on Android or iOS."
+    );
   }
   return "/api/trpc";
 };

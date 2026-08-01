@@ -14,53 +14,58 @@ export function registerOAuthRoutes(app: Express) {
   // ─── Local Login (replaces Manus OAuth) ───────────────────────────────────
   // Simple username + password login stored in .env
   app.post("/api/auth/login", async (req: Request, res: Response) => {
-    const { username, password } = req.body ?? {};
+    try {
+      const { username, password } = req.body ?? {};
 
-    if (!ENV.localAuthEnabled) {
-      res.status(404).json({ error: "Local auth is disabled" });
-      return;
-    }
+      if (!ENV.localAuthEnabled) {
+        res.status(404).json({ error: "Local auth is disabled" });
+        return;
+      }
 
-    if (!ENV.localAuthPassword) {
-      res.status(500).json({
-        error:
-          "LOCAL_AUTH_PASSWORD er ikke sat i .env filen. Tilføj: LOCAL_AUTH_PASSWORD=dit-kodeord",
+      if (!ENV.localAuthPassword) {
+        res.status(500).json({
+          error:
+            "LOCAL_AUTH_PASSWORD er ikke sat i .env filen. Tilføj: LOCAL_AUTH_PASSWORD=dit-kodeord",
+        });
+        return;
+      }
+
+      if (
+        username !== ENV.localAuthUsername ||
+        password !== ENV.localAuthPassword
+      ) {
+        res.status(401).json({ error: "Forkert brugernavn eller kodeord" });
+        return;
+      }
+
+      const openId = `local:${ENV.localAuthUsername}`;
+
+      // Ensure user exists in database
+      await db.upsertUser({
+        openId,
+        name: ENV.localAuthUsername,
+        email: null,
+        loginMethod: "local",
+        role: "admin",
+        lastSignedIn: new Date().toISOString(),
       });
-      return;
+
+      const sessionToken = await sdk.createSessionToken(openId, {
+        name: ENV.localAuthUsername,
+        expiresInMs: ONE_YEAR_MS,
+      });
+
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: ONE_YEAR_MS,
+      });
+
+      res.json({ success: true, name: ENV.localAuthUsername });
+    } catch (error) {
+      console.error("[Auth] Login failed:", error);
+      res.status(500).json({ error: "Login fejlede på serveren" });
     }
-
-    if (
-      username !== ENV.localAuthUsername ||
-      password !== ENV.localAuthPassword
-    ) {
-      res.status(401).json({ error: "Forkert brugernavn eller kodeord" });
-      return;
-    }
-
-    const openId = `local:${ENV.localAuthUsername}`;
-
-    // Ensure user exists in database
-    await db.upsertUser({
-      openId,
-      name: ENV.localAuthUsername,
-      email: null,
-      loginMethod: "local",
-      role: "admin",
-      lastSignedIn: new Date().toISOString(),
-    });
-
-    const sessionToken = await sdk.createSessionToken(openId, {
-      name: ENV.localAuthUsername,
-      expiresInMs: ONE_YEAR_MS,
-    });
-
-    const cookieOptions = getSessionCookieOptions(req);
-    res.cookie(COOKIE_NAME, sessionToken, {
-      ...cookieOptions,
-      maxAge: ONE_YEAR_MS,
-    });
-
-    res.json({ success: true, name: ENV.localAuthUsername });
   });
 
   // ─── Logout ────────────────────────────────────────────────────────────────

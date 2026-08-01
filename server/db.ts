@@ -10,9 +10,12 @@ import {
   InsertDreamInterpretation,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
-import path from "path";
 
-const dbPath = process.env.DATABASE_PATH || "./dream-interpreter.db";
+const dbPath =
+  ENV.databasePath ||
+  (process.env.NODE_ENV === "production"
+    ? "/tmp/dream-interpreter.db"
+    : "./dream-interpreter.db");
 
 // Initialize SQLite database (creates file if it doesn't exist)
 let _db: ReturnType<typeof drizzle> | null = null;
