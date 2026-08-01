@@ -23,6 +23,64 @@ const GOOGLE_ISSUERS = ["accounts.google.com", "https://accounts.google.com"];
 const GOOGLE_JWKS = createRemoteJWKSet(
   new URL("https://www.googleapis.com/oauth2/v3/certs")
 );
+const GOOGLE_CLIENT_ID_PATTERN =
+  /^\d+-[a-zA-Z0-9_-]+\.apps\.googleusercontent\.com$/;
+
+function validateGoogleAuthConfig() {
+  if (!ENV.googleClientId) {
+    return "GOOGLE_CLIENT_ID mangler i Railway.";
+  }
+  if (!GOOGLE_CLIENT_ID_PATTERN.test(ENV.googleClientId)) {
+    return "GOOGLE_CLIENT_ID er ikke en gyldig OAuth Client ID. Den skal ende på .apps.googleusercontent.com og må ikke være en Gmail-adresse.";
+  }
+  if (!ENV.googleClientSecret) {
+    return "GOOGLE_CLIENT_SECRET mangler i Railway.";
+  }
+  if (ENV.googleClientSecret.includes("@")) {
+    return "GOOGLE_CLIENT_SECRET ligner en e-mail eller adgangskode. Brug Client secret fra Google Cloud OAuth-klienten.";
+  }
+  return null;
+}
+
+function sendGoogleConfigError(res: Response, message: string) {
+  res.status(500).send(`
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Google login mangler opsætning</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: Arial, sans-serif;
+        background: #101828;
+        color: white;
+      }
+      main {
+        width: min(520px, calc(100vw - 32px));
+        background: #1d2939;
+        border: 1px solid #344054;
+        border-radius: 12px;
+        padding: 24px;
+      }
+      h1 { margin: 0 0 12px; font-size: 22px; }
+      p { color: #d0d5dd; line-height: 1.5; }
+      code { color: #fdb022; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Google login er ikke korrekt opsat</h1>
+      <p>${message}</p>
+      <p>Ret variablerne <code>GOOGLE_CLIENT_ID</code> og <code>GOOGLE_CLIENT_SECRET</code> i Railway med værdierne fra Google Cloud Console.</p>
+    </main>
+  </body>
+</html>`);
+}
 
 function getPublicBaseUrl(req: Request) {
   const forwardedHost = req.headers["x-forwarded-host"];
@@ -38,8 +96,10 @@ function getPublicBaseUrl(req: Request) {
 
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/auth/google/start", (req: Request, res: Response) => {
-    if (!ENV.googleClientId) {
-      res.status(500).json({ error: "GOOGLE_CLIENT_ID is missing" });
+    const configError = validateGoogleAuthConfig();
+    if (configError) {
+      console.error("[GoogleAuth] Invalid configuration:", configError);
+      sendGoogleConfigError(res, configError);
       return;
     }
 
@@ -144,8 +204,10 @@ export function registerOAuthRoutes(app: Express) {
         ENV.googleRedirectUri ||
         `${getPublicBaseUrl(req)}/api/auth/google/callback`;
 
-      if (!ENV.googleClientId || !ENV.googleClientSecret) {
-        res.status(500).send("Google auth is not configured");
+      const configError = validateGoogleAuthConfig();
+      if (configError) {
+        console.error("[GoogleAuth] Invalid callback configuration:", configError);
+        sendGoogleConfigError(res, configError);
         return;
       }
 

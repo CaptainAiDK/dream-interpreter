@@ -45,9 +45,14 @@ const getApiUrl = () => {
     return `${baseUrl}/api/trpc`;
   }
   if (Capacitor.isNativePlatform()) {
-    throw new Error(
-      "VITE_API_URL must be set when running on Android or iOS."
-    );
+    const runtimeOrigin =
+      typeof window !== "undefined" ? window.location.origin.replace(/\/$/, "") : "";
+
+    if (runtimeOrigin) {
+      return `${runtimeOrigin}/api/trpc`;
+    }
+
+    throw new Error("Could not determine API URL on Android or iOS.");
   }
   return "/api/trpc";
 };
