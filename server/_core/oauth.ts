@@ -16,13 +16,21 @@ export function registerOAuthRoutes(app: Express) {
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
       const { username, password } = req.body ?? {};
+      console.info("[Auth] Login attempt", {
+        username,
+        localAuthEnabled: ENV.localAuthEnabled,
+        hasLocalPassword: Boolean(ENV.localAuthPassword),
+        localAuthUsername: ENV.localAuthUsername,
+      });
 
       if (!ENV.localAuthEnabled) {
+        console.warn("[Auth] Local auth disabled");
         res.status(404).json({ error: "Local auth is disabled" });
         return;
       }
 
       if (!ENV.localAuthPassword) {
+        console.error("[Auth] LOCAL_AUTH_PASSWORD is missing");
         res.status(500).json({
           error:
             "LOCAL_AUTH_PASSWORD er ikke sat i .env filen. Tilføj: LOCAL_AUTH_PASSWORD=dit-kodeord",
@@ -34,6 +42,10 @@ export function registerOAuthRoutes(app: Express) {
         username !== ENV.localAuthUsername ||
         password !== ENV.localAuthPassword
       ) {
+        console.warn("[Auth] Invalid credentials", {
+          username,
+          expectedUsername: ENV.localAuthUsername,
+        });
         res.status(401).json({ error: "Forkert brugernavn eller kodeord" });
         return;
       }
@@ -61,6 +73,7 @@ export function registerOAuthRoutes(app: Express) {
         maxAge: ONE_YEAR_MS,
       });
 
+      console.info("[Auth] Login success", { openId });
       res.json({ success: true, name: ENV.localAuthUsername });
     } catch (error) {
       console.error("[Auth] Login failed:", error);

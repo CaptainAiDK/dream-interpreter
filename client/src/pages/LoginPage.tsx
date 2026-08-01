@@ -3,7 +3,9 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
 const getApiBaseUrl = () => {
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl =
+    import.meta.env.VITE_API_URL ||
+    "https://dream-interpreter-production-c407.up.railway.app";
   if (apiUrl) {
     return apiUrl.replace(/\/$/, "");
   }
@@ -25,25 +27,41 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
+      const apiBaseUrl = getApiBaseUrl();
+      console.info("[Login] POST", `${apiBaseUrl}/api/auth/login`);
+
+      const res = await fetch(`${apiBaseUrl}/api/auth/login`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await res.json();
+      const rawBody = await res.text();
+      console.info("[Login] status", res.status, rawBody);
+
+      let data: { error?: string } = {};
+      if (rawBody) {
+        try {
+          data = JSON.parse(rawBody) as { error?: string };
+        } catch {
+          data = {};
+        }
+      }
 
       if (!res.ok) {
-        setError(data.error || "Login fejlede");
+        setError(data.error || `Login fejlede (${res.status})`);
         setLoading(false);
         return;
       }
 
       // Reload the page to trigger re-auth
       window.location.href = "/";
-    } catch {
-      setError("Kunne ikke forbinde til serveren");
+    } catch (error) {
+      console.error("[Login] request failed", error);
+      setError(
+        error instanceof Error ? error.message : "Kunne ikke forbinde til serveren",
+      );
       setLoading(false);
     }
   };
