@@ -20,12 +20,50 @@ const dbPath =
 // Initialize SQLite database (creates file if it doesn't exist)
 let _db: ReturnType<typeof drizzle> | null = null;
 
+function ensureSchema(sqlite: Database.Database) {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      openId TEXT NOT NULL UNIQUE,
+      name TEXT,
+      email TEXT,
+      loginMethod TEXT,
+      role TEXT NOT NULL DEFAULT 'user',
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+      lastSignedIn TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS dreams (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      dreamText TEXT NOT NULL,
+      category TEXT,
+      scenarioType TEXT,
+      interpretation TEXT,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS dreamInterpretations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dreamId INTEGER NOT NULL,
+      symbolAnalysis TEXT,
+      psychologicalInsights TEXT,
+      emotionalThemes TEXT,
+      recommendations TEXT,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+}
+
 export function getDb() {
   if (!_db) {
     try {
       const sqlite = new Database(dbPath);
       // Enable WAL mode for better performance
       sqlite.pragma("journal_mode = WAL");
+      ensureSchema(sqlite);
       _db = drizzle(sqlite);
     } catch (error) {
       console.error("[Database] Failed to open SQLite database:", error);
