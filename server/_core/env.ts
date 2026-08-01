@@ -3,6 +3,10 @@ export const ENV = {
   cookieSecret: process.env.JWT_SECRET ?? "change-this-secret-in-production",
   databasePath: process.env.DATABASE_PATH ?? "./dream-interpreter.db",
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  googleRedirectUri:
+    process.env.GOOGLE_REDIRECT_URI ?? "",
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",

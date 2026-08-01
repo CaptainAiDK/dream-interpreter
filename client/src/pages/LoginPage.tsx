@@ -1,67 +1,25 @@
 import { Capacitor } from "@capacitor/core";
 import { useState } from "react";
-import { trpc } from "@/lib/trpc";
 
 const getApiBaseUrl = () => {
   const apiUrl =
     import.meta.env.VITE_API_URL ||
     "https://dream-interpreter-production-c407.up.railway.app";
-  if (apiUrl) {
-    return apiUrl.replace(/\/$/, "");
-  }
-  if (Capacitor.isNativePlatform()) {
-    throw new Error("VITE_API_URL must be set on native platforms.");
-  }
-  return "";
+  return apiUrl.replace(/\/$/, "");
 };
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const startGoogleLogin = async () => {
     setError("");
     setLoading(true);
-
     try {
-      const apiBaseUrl = getApiBaseUrl();
-      console.info("[Login] POST", `${apiBaseUrl}/api/auth/login`);
-
-      const res = await fetch(`${apiBaseUrl}/api/auth/login`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ username, password }),
-      });
-
-      const rawBody = await res.text();
-      console.info("[Login] status", res.status, rawBody);
-
-      let data: { error?: string } = {};
-      if (rawBody) {
-        try {
-          data = JSON.parse(rawBody) as { error?: string };
-        } catch {
-          data = {};
-        }
-      }
-
-      if (!res.ok) {
-        setError(data.error || `Login fejlede (${res.status})`);
-        setLoading(false);
-        return;
-      }
-
-      // Reload the page to trigger re-auth
-      window.location.href = "/";
-    } catch (error) {
-      console.error("[Login] request failed", error);
-      setError(
-        error instanceof Error ? error.message : "Kunne ikke forbinde til serveren",
-      );
+      window.location.href = `${getApiBaseUrl()}/api/auth/google/start`;
+    } catch (err) {
+      console.error("[GoogleAuth] start failed", err);
+      setError(err instanceof Error ? err.message : "Kunne ikke starte Google login");
       setLoading(false);
     }
   };
@@ -75,138 +33,75 @@ export default function LoginPage() {
         justifyContent: "center",
         background: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
         fontFamily: "'Inter', sans-serif",
+        padding: 24,
       }}
     >
       <div
         style={{
-          background: "rgba(255,255,255,0.05)",
+          background: "rgba(255,255,255,0.06)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255,255,255,0.15)",
-          borderRadius: "20px",
-          padding: "40px",
+          borderRadius: 24,
+          padding: 32,
           width: "100%",
-          maxWidth: "380px",
+          maxWidth: 420,
           boxShadow: "0 25px 50px rgba(0,0,0,0.5)",
         }}
       >
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div style={{ fontSize: "48px", marginBottom: "12px" }}>🌙</div>
-          <h1
-            style={{
-              color: "white",
-              fontSize: "24px",
-              fontWeight: 700,
-              margin: "0 0 6px",
-            }}
-          >
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontSize: 54, marginBottom: 12 }}>🌙</div>
+          <h1 style={{ color: "white", fontSize: 28, fontWeight: 700, margin: 0 }}>
             Drømmetolker
           </h1>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "14px", margin: 0 }}>
-            Log ind for at tolke dine drømme
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, marginTop: 8 }}>
+            Log ind med Google for at fortsætte
           </p>
         </div>
 
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: "16px" }}>
-            <label
-              style={{
-                display: "block",
-                color: "rgba(255,255,255,0.7)",
-                fontSize: "13px",
-                marginBottom: "6px",
-                fontWeight: 500,
-              }}
-            >
-              Brugernavn
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px 16px",
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                borderRadius: "10px",
-                color: "white",
-                fontSize: "15px",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-              required
-            />
-          </div>
+        <button
+          onClick={startGoogleLogin}
+          disabled={loading}
+          style={{
+            width: "100%",
+            padding: "14px 16px",
+            borderRadius: 12,
+            border: "none",
+            background: loading ? "rgba(255,255,255,0.18)" : "#ffffff",
+            color: "#111827",
+            fontSize: 16,
+            fontWeight: 700,
+            cursor: loading ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+          }}
+        >
+          <span>🔵</span>
+          {loading ? "Åbner Google..." : "Fortsæt med Google"}
+        </button>
 
-          <div style={{ marginBottom: "24px" }}>
-            <label
-              style={{
-                display: "block",
-                color: "rgba(255,255,255,0.7)",
-                fontSize: "13px",
-                marginBottom: "6px",
-                fontWeight: 500,
-              }}
-            >
-              Kodeord
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Indtast kodeord fra .env filen"
-              style={{
-                width: "100%",
-                padding: "12px 16px",
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                borderRadius: "10px",
-                color: "white",
-                fontSize: "15px",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-              required
-            />
-          </div>
+        <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 16, textAlign: "center" }}>
+          {Capacitor.isNativePlatform()
+            ? "På telefonen åbner login i browseren og vender tilbage til appen."
+            : "Du bliver sendt til Googles login og tilbage til appen bagefter."}
+        </p>
 
-          {error && (
-            <div
-              style={{
-                background: "rgba(255,80,80,0.15)",
-                border: "1px solid rgba(255,80,80,0.3)",
-                borderRadius: "10px",
-                padding: "12px 16px",
-                color: "#ff8080",
-                fontSize: "13px",
-                marginBottom: "16px",
-              }}
-            >
-              ⚠️ {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
+        {error && (
+          <div
             style={{
-              width: "100%",
-              padding: "14px",
-              background: loading
-                ? "rgba(139,92,246,0.4)"
-                : "linear-gradient(135deg, #8b5cf6, #6366f1)",
-              border: "none",
-              borderRadius: "10px",
-              color: "white",
-              fontSize: "16px",
-              fontWeight: 600,
-              cursor: loading ? "not-allowed" : "pointer",
-              transition: "all 0.2s",
+              marginTop: 16,
+              background: "rgba(255,80,80,0.15)",
+              border: "1px solid rgba(255,80,80,0.3)",
+              borderRadius: 10,
+              padding: "12px 16px",
+              color: "#ff9b9b",
+              fontSize: 13,
             }}
           >
-            {loading ? "Logger ind..." : "Log ind 🌙"}
-          </button>
-        </form>
+            ⚠️ {error}
+          </div>
+        )}
       </div>
     </div>
   );
