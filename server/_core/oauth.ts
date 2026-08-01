@@ -6,17 +6,47 @@ import { sdk } from "./sdk";
 import { ENV } from "./env";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import crypto from "node:crypto";
-import { parse as parseCookieHeader } from "cookie";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
   return typeof value === "string" ? value : undefined;
 }
 
-function getCookieValue(req: Request, key: string): string | undefined {
-  const cookieHeader = req.headers.cookie;
-  if (!cookieHeader) return undefined;
-  return parseCookieHeader(cookieHeader)[key];
+function createGoogleStateToken() {
+  const nonce = crypto.randomBytes(24).toString("hex");
+  const issuedAt = Date.now().toString();
+  const payload = `${nonce}.${issuedAt}`;
+  const signature = crypto
+    .createHmac("sha256", ENV.cookieSecret)
+    .update(payload)
+    .digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function verifyGoogleStateToken(state: string | undefined) {
+  if (!state) return false;
+
+  const [nonce, issuedAt, signature] = state.split(".");
+  if (!nonce || !issuedAt || !signature) return false;
+  if (!/^\d+$/.test(issuedAt)) return false;
+
+  const payload = `${nonce}.${issuedAt}`;
+  const expectedSignature = crypto
+    .createHmac("sha256", ENV.cookieSecret)
+    .update(payload)
+    .digest("base64url");
+
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+  if (
+    signatureBuffer.length !== expectedBuffer.length ||
+    !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)
+  ) {
+    return false;
+  }
+
+  const ageMs = Date.now() - Number(issuedAt);
+  return ageMs >= 0 && ageMs <= 10 * 60 * 1000;
 }
 
 const GOOGLE_ISSUERS = ["accounts.google.com", "https://accounts.google.com"];
@@ -103,7 +133,7 @@ export function registerOAuthRoutes(app: Express) {
       return;
     }
 
-    const state = crypto.randomBytes(24).toString("hex");
+    const state = createGoogleStateToken();
     const redirectUri =
       ENV.googleRedirectUri ||
       `${getPublicBaseUrl(req)}/api/auth/google/callback`;
@@ -113,14 +143,8 @@ export function registerOAuthRoutes(app: Express) {
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("scope", "openid email profile");
     authUrl.searchParams.set("state", state);
-    authUrl.searchParams.set("prompt", "select_account");
-    authUrl.searchParams.set("access_type", "online");
-
-    res.cookie("google_oauth_state", state, {
-      ...getSessionCookieOptions(req),
-      httpOnly: true,
-      maxAge: 10 * 60 * 1000,
-    });
+      authUrl.searchParams.set("prompt", "select_account");
+      authUrl.searchParams.set("access_type", "online");
 
     res.redirect(authUrl.toString());
   });
@@ -199,7 +223,6 @@ export function registerOAuthRoutes(app: Express) {
     try {
       const code = getQueryParam(req, "code");
       const state = getQueryParam(req, "state");
-      const cookieState = getCookieValue(req, "google_oauth_state");
       const redirectUri =
         ENV.googleRedirectUri ||
         `${getPublicBaseUrl(req)}/api/auth/google/callback`;
@@ -211,7 +234,7 @@ export function registerOAuthRoutes(app: Express) {
         return;
       }
 
-      if (!code || !state || !cookieState || state !== cookieState) {
+      if (!code || !state || !verifyGoogleStateToken(state)) {
         res.status(400).send("Invalid Google login state");
         return;
       }
@@ -275,7 +298,6 @@ export function registerOAuthRoutes(app: Express) {
       });
 
       const cookieOptions = getSessionCookieOptions(req);
-      res.clearCookie("google_oauth_state", { ...cookieOptions, maxAge: 0 });
       res.cookie(COOKIE_NAME, sessionToken, {
         ...cookieOptions,
         maxAge: ONE_YEAR_MS,
